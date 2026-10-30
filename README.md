@@ -1,5 +1,7 @@
 # speedpicture
 
+**Live Demo:** https://speedpicture.onrender.com/
+
 スマホの写真・動画を Googleフォトへ送る前に、**メタ情報を全部消して、ついでに小さくする**準備ツールです。
 ファイルを小さくした分だけ、アップロードにかかる時間と通信量が減ります。
 
