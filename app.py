@@ -36,7 +36,7 @@ button,input[type=submit]{font-size:1em;padding:.5em 1.2em}
 
 INDEX = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>speedpicture</title><style>{{css}}</style></head><body>
+<title>speedpicture</title><style>{{css|safe}}</style></head><body>
 <h1>📷 speedpicture</h1>
 <p>写真・動画の<strong>メタ情報（位置情報・撮影日時・機器情報など）を全部消して</strong>、
 ついでに小さくして、Googleフォトへのアップロードを速くするための準備ツールです。</p>
@@ -59,7 +59,7 @@ INDEX = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
 
 RESULT = """<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>変換結果 - speedpicture</title><style>{{css}}</style></head><body>
+<title>変換結果 - speedpicture</title><style>{{css|safe}}</style></head><body>
 <h1>変換結果</h1>
 <table><tr><th>ファイル</th><th>結果</th><th>サイズ</th><th></th></tr>
 {% for r in results %}

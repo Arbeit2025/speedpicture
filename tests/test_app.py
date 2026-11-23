@@ -65,3 +65,13 @@ def test_process_without_files_redirects(client):
 
 def test_download_rejects_bad_batch(client):
     assert client.get("/download/nope/photo.jpg").status_code == 404
+
+
+def test_index_css_not_escaped(client):
+    # 回帰テスト: {{css|safe}} が外れると CSS が HTML エスケープされ、
+    # 将来 CSS に引用符等を足した瞬間にスタイルが壊れる。生の CSS が
+    # そのまま配信されることを担保する。
+    body = client.get("/").get_data(as_text=True)
+    style = body.split("<style>", 1)[1].split("</style>", 1)[0]
+    assert style == app_module.CSS
+    assert "&#" not in style
