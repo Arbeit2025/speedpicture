@@ -2,25 +2,71 @@
 # 対象: 作者が dependabot[bot] の非 Draft PR の全部（メジャー更新を含む）。
 # 前提: 対象リポジトリの Settings > General > Pull Requests で
 #       "Allow auto-merge" を有効化しておくこと（docs/dependabot-auto-merge.md 参照）。
+# 滞留対策（2026-11-28 追加）:
+#   - auto-merge の有効化は一時的な API エラー（502 等）に備えて最大3回リトライする。
+#   - 1日1回のスイープで、auto-merge 未設定のまま残っている Dependabot PR を拾い直す
+#     （発火失敗や、ワークフロー配置前に開かれた PR の取りこぼしを自己修復する）。
 name: Dependabot auto-merge
 on:
   pull_request:
     types: [opened, reopened, synchronize, ready_for_review]
+  schedule:
+    - cron: '23 4 * * *'
+  workflow_dispatch:
 permissions:
   contents: write
   pull-requests: write
 jobs:
   auto-merge:
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.event.pull_request.draft == false
     steps:
       - name: Fetch Dependabot metadata
         id: metadata
-        uses: dependabot/fetch-metadata@v3
+        uses: dependabot/fetch-metadata@v2
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN}}
       - name: Enable auto-merge for Dependabot PRs
-        run: gh pr merge --auto --merge "$PR_URL"
+        run: |
+          for attempt in 1 2 3; do
+            if gh pr merge --auto --merge "$PR_URL"; then
+              exit 0
+            fi
+            echo "attempt ${attempt} failed; waiting 30s"
+            sleep 30
+          done
+          echo "::error::could not enable auto-merge for $PR_URL"
+          exit 1
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  sweep:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable auto-merge for stuck Dependabot PRs
+        run: |
+          urls=$(gh pr list --repo "$REPO" --author "app/dependabot" --state open --limit 100 --json number,isDraft,autoMergeRequest,url --jq '.[] | select(.isDraft == false and .autoMergeRequest == null) | .url')
+          failed=0
+          for url in $urls; do
+            echo "Enabling auto-merge: $url"
+            ok=0
+            for attempt in 1 2 3; do
+              if gh pr merge --auto --merge "$url"; then
+                ok=1
+                break
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "attempt ${attempt} failed; waiting 30s"
+                sleep 30
+              fi
+            done
+            if [ "$ok" -ne 1 ]; then
+              echo "::error::could not enable auto-merge for $url"
+              failed=1
+            fi
+          done
+          exit "$failed"
+        env:
+          REPO: ${{ github.repository }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
